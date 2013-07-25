@@ -464,8 +464,11 @@ class Elf_ShdrTable(list):
             size = entry.sh_size.value
 
             #print "[%d] sectionOff: %x - off: %x - size: %x" % (i, sectionOff, off, size)
-            if off and size: 
-                entry.sectionRawData = readDataInstance.readAt(off, size)
+            if off and size:
+                # SHT_NOBITS sections contains only un-initialized data. This sections
+                # does not occupy space on disk. Are filled with zeros when the ELF is loaded into memory.
+                if entry.sh_type.value != elfconstants.ELF_SECTION_TYPES["SHT_NOBITS"]: 
+                    entry.sectionRawData = readDataInstance.readAt(off, size)
                 
             ShdrTable.append(entry)
 

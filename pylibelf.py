@@ -82,7 +82,7 @@ class BaseStructClass(object):
         
     def getType(self):
         raise NotImplementedError("getType() method not implemented.")
-        
+    
 class ELF(object):
     def __init__(self,  pathToFile = None, data = None, fastLoad = False, verbose = False):
         self.elfHdr = None
@@ -114,25 +114,25 @@ class ELF(object):
     def validate(self, data):
         rd = elfdatatypes.Array.parse(elfutils.ReadData(data), elfdatatypes.TYPE_BYTE, 16)
         
-        if rd[0] == elfconstants.ELFMAG0 and rd[1] == elfconstants.ELFMAG1 and rd[2] == elfconstants.ELFMAG2\
-        and rd[3] == elfconstants.ELFMAG3:
+        if rd[0] == elfconstants.ELF_MAGICS["ELFMAG0"] and rd[1] == elfconstants.ELF_MAGICS["ELFMAG1"]\
+        and rd[2] == elfconstants.ELF_MAGICS["ELFMAG2"] and rd[3] == elfconstants.ELF_MAGICS["ELFMAG3"]:
             return True
         return False
             
     def getType(self):
-        return self.elfHdr.e_ident[elfconstants.EI_CLASS]
+        return self.elfHdr.e_ident[elfconstants.ELF_IDENT_TYPES["EI_CLASS"]]
     
     def __parse__(self, readDataInstance):
         data = elfdatatypes.Array.parse(elfutils.ReadData(readDataInstance.read(16)), elfdatatypes.TYPE_BYTE, 16)
         
-        elfClass = data[elfconstants.EI_CLASS]
-        dataEncoding = data[elfconstants.EI_DATA]
+        elfClass = data[elfconstants.ELF_IDENT_TYPES["EI_CLASS"]]
+        dataEncoding = data[elfconstants.ELF_IDENT_TYPES["EI_DATA"]]
         
         readDataInstance.setOffset(0)
-        if elfClass == elfconstants.ELFCLASS32:
+        if elfClass == elfconstants.ELF_FILE_CLASS["ELFCLASS32"]:
             print "--> File is ELF32."
             self.elfHdr = Elf32_Ehdr.parse(readDataInstance)
-        elif elfClass == elfconstants.ELFCLASS64:
+        elif elfClass == elfconstants.ELF_FILE_CLASS["ELFCLASS64"]:
             print "--> File is ELF64."
             self.elfHdr = Elf64_Ehdr.parse(readDataInstance)
 
@@ -156,9 +156,9 @@ class ELF(object):
         else:
             raise elfexceptions.UnknownFormatException("Unknown format error.")
         
-        if dataEncoding == elfconstants.ELFDATA2LSB:
+        if dataEncoding == elfconstants.ELF_DATA_ENCODING_TYPES["ELFDATA2LSB"]:
             print "--> Data: LSB."
-        elif dataEncoding == elfconstants.ELFDATAMSB:
+        elif dataEncoding == elfconstants.ELF_DATA_ENCODING_TYPES["ELFDATAMSB"]:
             print "--> Data: MSB."
         else:
             raise UnknownDataEncodingException("Unknown data encoding for ELF.")
@@ -466,7 +466,7 @@ class Elf_ShdrTable(list):
             #print "[%d] sectionOff: %x - off: %x - size: %x" % (i, sectionOff, off, size)
             if off and size: 
                 entry.sectionRawData = readDataInstance.readAt(off, size)
-
+                
             ShdrTable.append(entry)
 
             sectionOff += sectionSize

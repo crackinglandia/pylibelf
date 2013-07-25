@@ -33,27 +33,27 @@ __author__ = "Nahuel Riva"
 __contact__ = "crackinglandia@gmail.com"
 __license__ = ""
 
-class PyLibElf32Exception(Exception):
+class pylibelfException(Exception):
     pass
     
-class WrongOffsetValueException(PyLibElf32Exception):
+class WrongOffsetValueException(pylibelfException):
     pass
 
-class DataLengthException(PyLibElf32Exception):
+class DataLengthException(pylibelfException):
     pass
 
-class ArrayTypeException(PyLibElf32Exception):
+class ArrayTypeException(pylibelfException):
     pass
 
-class PathOrDataNotSpecifiedException(PyLibElf32Exception):
+class PathOrDataNotSpecifiedException(pylibelfException):
     pass
     
-class PathNotValidException(PyLibElf32Exception):
+class PathNotValidException(pylibelfException):
     pass
     
-class UnknownFormatException(PyLibElf32Exception):
+class UnknownFormatException(pylibelfException):
     pass
 
-class UnknownDataEncodingException(PyLibElf32Exception):
+class UnknownDataEncodingException(pylibelfException):
     pass
     

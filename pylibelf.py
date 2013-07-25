@@ -50,6 +50,7 @@ ELF32_PHDR = 6
 
 ELF64 = 7
 ELF64_EHDR = 8
+ELF64_PHDR = 9
 
 class BaseStructClass(object):
     def __init__(self,  shouldPack = True):
@@ -82,28 +83,33 @@ class BaseStructClass(object):
         raise NotImplementedError("getType() method not implemented.")
         
 class ELF(object):
-    def __init__(self,  pathToFile = None,  data = None,  fastLoad = False,  verbose = False):
+    def __init__(self,  pathToFile = None, data = None, fastLoad = False, verbose = False):
         self.elfHdr = None
-        
-        if data is not None:
+        self.__data = None
+
+        if data:
             print "--> Building ELF from data."
-            self._parse(elfutils.ReadData(data))
+            self.__data = elfutils.ReadData(data)
+            self.__parse__(self.__data)
             
-        elif pathToFile is not None:
+        elif pathToFile:
             print "--> Building ELF from file."
             
             if os.path.exists(pathToFile):
-                __data = elfutils.readFile(pathToFile)
-                if self.validate(__data[:16]):                
-                    rd = elfutils.ReadData(__data)
-                    self._parse(rd)
+                self.__data = elfutils.readFile(pathToFile)
+                if self.validate(self.__data[:16]):                
+                    self.__data = elfutils.ReadData(self.__data)
+                    self.__parse__(self.__data)
                 else:
                     raise elfexceptions.UnknownFormatException("It seems that the file is not a valid ELF.")
             else:
                 raise elfexceptions.PathNotValidException("The specified path does not exists.")
         else:
-            raise elfexceptions.PathOrDataNotSpecifiedException("Path nor data was specified!.")
-            
+            raise elfexceptions.PathOrDataNotSpecifiedException("Path nor data were specified!.")
+
+    def readDataAtOffset(self, offset, size):
+        return self.__data.readAt(offset, size)
+
     def validate(self, data):
         rd = elfdatatypes.Array.parse(elfutils.ReadData(data), elfdatatypes.TYPE_BYTE, 16)
         
@@ -115,7 +121,7 @@ class ELF(object):
     def getType(self):
         return self.elfHdr.e_ident[elfconstants.EI_CLASS]
     
-    def _parse(self, readDataInstance):
+    def __parse__(self, readDataInstance):
         data = elfdatatypes.Array.parse(elfutils.ReadData(readDataInstance.read(16)), elfdatatypes.TYPE_BYTE, 16)
         
         elfClass = data[elfconstants.EI_CLASS]
@@ -128,6 +134,16 @@ class ELF(object):
         elif elfClass == elfconstants.ELFCLASS64:
             print "--> File is ELF64."
             self.elfHdr = Elf64_Ehdr.parse(readDataInstance)
+
+            if self.elfHdr.e_phnum.value > 0:
+                if self.elfHdr.e_phoff.value:
+
+                    off = self.elfHdr.e_phoff.value
+                    size = self.elfHdr.e_phentsize.value
+                    noEntries = self.elfHdr.e_phnum.value
+
+                    self.PhdrTable = Elf64_PhdrTable.parse(readDataInstance, noEntries, off, size)
+
         else:
             raise elfexceptions.UnknownFormatException("Unknown format error.")
         
@@ -297,6 +313,8 @@ class Elf32_Phdr(BaseStructClass):
         self.p_flags = elfdatatypes.Elf32_Word()
         self.p_align = elfdatatypes.Elf32_Word()
 
+        self.segmentRawData = None
+        
         self._fields = ["p_type", "p_offset", "p_vaddr", "p_paddr", "p_filesz", "p_memsz",\
         "p_flags", "p_align"]
         
@@ -360,3 +378,61 @@ class Elf64_Ehdr(BaseStructClass):
         elf64_ehdr.e_shstrndx = elfdatatypes.Elf64_Half(readDataInstance.readElf64Half())
         return elf64_ehdr
         
+class Elf64_Phdr(BaseStructClass):
+    def __init__(self, shouldPack = True):
+        BaseStructClass.__init__(self, shouldPack)
+
+        self.p_type = elfdatatypes.Elf64_Word()
+        self.p_flags = elfdatatypes.Elf64_Word()
+        self.p_offset = elfdatatypes.Elf64_Off()
+        self.p_vaddr = elfdatatypes.Elf64_Addr()
+        self.p_paddr = elfdatatypes.Elf64_Addr()
+        self.p_filesz = elfdatatypes.Elf64_Xword()
+        self.p_memsz = elfdatatypes.Elf64_Xword()
+        self.p_align = elfdatatypes.Elf64_Xword()
+
+        self.segmentRawData = None # this attribute holds program header + data
+
+        self._fields = ["p_type", "p_flags", "p_offset", "p_vaddr", "p_paddr", "p_filesz",\
+                        "p_memsz", "p_align"]
+
+    def getType(self):
+        return ELF64_PHDR
+
+    @staticmethod
+    def parse(readDataInstance):
+        elf64_Phdr = Elf64_Phdr()
+        elf64_Phdr.p_type = elfdatatypes.Elf64_Word(readDataInstance.readElf64Word())
+        elf64_Phdr.p_flags = elfdatatypes.Elf64_Word(readDataInstance.readElf64Word())
+        elf64_Phdr.p_offset = elfdatatypes.Elf64_Off(readDataInstance.readElf64Off())
+        elf64_Phdr.p_vaddr = elfdatatypes.Elf64_Addr(readDataInstance.readElf64Addr())
+        elf64_Phdr.p_paddr = elfdatatypes.Elf64_Addr(readDataInstance.readElf64Addr())
+        elf64_Phdr.p_filesz = elfdatatypes.Elf64_Xword(readDataInstance.readElf64Xword())
+        elf64_Phdr.p_memsz = elfdatatypes.Elf64_Xword(readDataInstance.readElf64Xword())
+        elf64_Phdr.p_align = elfdatatypes.Elf64_Xword(readDataInstance.readElf64Xword())
+        return elf64_Phdr
+
+class Elf_PhdrTable(list):
+
+    @staticmethod
+    def parse(readDataInstance, noEntries, entryOff, entrySize, ELFPHDR32 = True):
+        PhdrTable = Elf_PhdrTable()
+        for i in range(noEntries):
+            rd = elfutils.ReadData(readDataInstance.readAt(entryOff, entrySize))
+            
+            if ELFPHDR32:
+                entry = Elf32_Phdr.parse(rd)
+            else:
+                entry = Elf64_Phdr.parse(rd)
+
+            off = entry.p_offset.value
+            size = entry.p_filesz.value
+            
+            if off and size:
+                entry.segmentRawData = readDataInstance.readAt(off, size)
+
+            PhdrTable.append(entry)
+
+            entryOff += entrySize
+
+        return PhdrTable

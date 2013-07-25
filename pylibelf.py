@@ -31,7 +31,7 @@
 __revision__ = "$Id$"
 __author__ = "Nahuel Riva"
 __contact__ = "crackinglandia@gmail.com"
-__license__ = ""
+__license__ = "BSD 3-Clause"
 
 import os
 
@@ -51,6 +51,7 @@ ELF32_PHDR = 6
 ELF64 = 7
 ELF64_EHDR = 8
 ELF64_PHDR = 9
+ELF64_SHDR = 10
 
 class BaseStructClass(object):
     def __init__(self,  shouldPack = True):
@@ -142,7 +143,15 @@ class ELF(object):
                     size = self.elfHdr.e_phentsize.value
                     noEntries = self.elfHdr.e_phnum.value
 
-                    self.PhdrTable = Elf64_PhdrTable.parse(readDataInstance, noEntries, off, size)
+                    self.PhdrTable = Elf_PhdrTable.parse(readDataInstance, noEntries, off, size, ELFPHDR32 = False)
+
+            if self.elfHdr.e_shnum.value > 0:
+                if self.elfHdr.e_shoff.value:
+                    off = self.elfHdr.e_shoff.value
+                    size = self.elfHdr.e_shentsize.value
+                    noSections = self.elfHdr.e_shnum.value
+
+                    self.ShdrTable = Elf_ShdrTable.parse(readDataInstance, noSections, off, size, ELFSHDR32 = False)
 
         else:
             raise elfexceptions.UnknownFormatException("Unknown format error.")
@@ -324,14 +333,14 @@ class Elf32_Phdr(BaseStructClass):
     @staticmethod
     def parse(readDataInstance):
         elf32_phdr = Elf32_Phdr()
-        elf32_phdr.p_type = elfdatatypes.Elf32_Word(readDataInsance.readElfWord())
+        elf32_phdr.p_type = elfdatatypes.Elf32_Word(readDataInstance.readElfWord())
         elf32_phdr.p_offset = elfdatatypes.Elf32_Off(readDataInstance.readElfOff())
         elf32_phdr.p_vaddr = elfdatatypes.Elf32_Addr(readDataInstance.readElfAddr())
         elf32_phdr.p_paddr = elfdatatypes.Elf32_Addr(readDataInstance.readElfAddr())
-        elf32_phdr.p_filesz = elfdatatypes.Elf32_Word(readDataInsance.readElfWord())
-        elf32_phdr.p_memsz = elfdatatypes.Elf32_Word(readDataInsance.readElfWord())
-        elf32_phdr.p_flags = elfdatatypes.Elf32_Word(readDataInsance.readElfWord())
-        elf32_phdr.p_align = elfdatatypes.Elf32_Word(readDataInsance.readElfWord())
+        elf32_phdr.p_filesz = elfdatatypes.Elf32_Word(readDataInstance.readElfWord())
+        elf32_phdr.p_memsz = elfdatatypes.Elf32_Word(readDataInstance.readElfWord())
+        elf32_phdr.p_flags = elfdatatypes.Elf32_Word(readDataInstance.readElfWord())
+        elf32_phdr.p_align = elfdatatypes.Elf32_Word(readDataInstance.readElfWord())
         return elf32_phdr
         
 class Elf64_Ehdr(BaseStructClass):
@@ -436,3 +445,68 @@ class Elf_PhdrTable(list):
             entryOff += entrySize
 
         return PhdrTable
+
+class Elf_ShdrTable(list):
+    
+    @staticmethod
+    def parse(readDataInstance, noSections, sectionOff, sectionSize, ELFSHDR32 = True):
+        print "sectionSize: %x" % sectionSize
+        ShdrTable = Elf_ShdrTable()
+        for i in range(noSections):
+            rd = elfutils.ReadData(readDataInstance.readAt(sectionOff, sectionSize))
+
+            if ELFSHDR32:
+                entry = Elf32_Shdr.parse(rd)
+            else:
+                entry = Elf64_Shdr.parse(rd)
+
+            off = entry.sh_offset.value
+            size = entry.sh_size.value
+
+            print "[%d] sectionOff: %x - off: %x - size: %x" % (i, sectionOff, off, size)
+            if off and size: 
+                entry.sectionRawData = readDataInstance.readAt(off, size)
+
+            ShdrTable.append(entry)
+
+            sectionOff += sectionSize
+        
+        return ShdrTable
+
+class Elf64_Shdr(BaseStructClass):
+    def __init__(self, shouldPack = True):
+        BaseStructClass.__init__(self, shouldPack)
+        
+        self.sh_name = elfdatatypes.Elf64_Word()
+        self.sh_type = elfdatatypes.Elf64_Word()
+        self.sh_flags = elfdatatypes.Elf64_Xword()
+        self.sh_addr = elfdatatypes.Elf64_Addr()
+        self.sh_offset = elfdatatypes.Elf64_Off()
+        self.sh_size = elfdatatypes.Elf64_Xword()
+        self.sh_link = elfdatatypes.Elf64_Word()
+        self.sh_info = elfdatatypes.Elf64_Word()
+        self.sh_addralign = elfdatatypes.Elf64_Xword()
+        self.sh_entsize = elfdatatypes.Elf64_Xword()
+    
+        self.sectionRawData = None
+
+        self._fields = ["sh_name", "sh_type", "sh_flags", "sh_addr", "sh_offset", "sh_size", "sh_link",\
+                         "sh_info", "sh_addralign", "sh_entsize"]
+        
+    def getType(self):
+        return ELF64_SHDR
+        
+    @staticmethod
+    def parse(readDataInstance):
+        elf64_shdr = Elf64_Shdr()
+        elf64_shdr.sh_name = elfdatatypes.Elf64_Word(readDataInstance.readElf64Word())
+        elf64_shdr.sh_type = elfdatatypes.Elf64_Word(readDataInstance.readElf64Word())
+        elf64_shdr.sh_flags = elfdatatypes.Elf64_Xword(readDataInstance.readElf64Xword())
+        elf64_shdr.sh_addr = elfdatatypes.Elf64_Addr(readDataInstance.readElf64Addr())
+        elf64_shdr.sh_offset = elfdatatypes.Elf64_Off(readDataInstance.readElf64Off())
+        elf64_shdr.sh_size = elfdatatypes.Elf64_Xword(readDataInstance.readElf64Xword())
+        elf64_shdr.sh_link = elfdatatypes.Elf64_Word(readDataInstance.readElf64Word())
+        elf64_shdr.sh_info = elfdatatypes.Elf64_Word(readDataInstance.readElf64Word())
+        elf64_shdr.sh_addralign = elfdatatypes.Elf64_Xword(readDataInstance.readElf64Xword())
+        elf64_shdr.sh_entsize = elfdatatypes.Elf64_Xword(readDataInstance.readElf64Xword())
+        return elf64_shdr

@@ -31,7 +31,7 @@
 __revision__ = "$Id$"
 __author__ = "Nahuel Riva"
 __contact__ = "crackinglandia@gmail.com"
-__license__ = ""
+__license__ = "BSD 3-Clause"
 
 """
 TODO:
@@ -41,7 +41,6 @@ TODO:
 import elfdatatypes
 
 from StringIO import StringIO
-from cStringIO import StringIO as cstringio
 from struct import pack, unpack
 
 def ELF32_ST_BIND(i):

@@ -450,7 +450,7 @@ class Elf_ShdrTable(list):
     
     @staticmethod
     def parse(readDataInstance, noSections, sectionOff, sectionSize, ELFSHDR32 = True):
-        print "sectionSize: %x" % sectionSize
+        #print "sectionSize: %x" % sectionSize
         ShdrTable = Elf_ShdrTable()
         for i in range(noSections):
             rd = elfutils.ReadData(readDataInstance.readAt(sectionOff, sectionSize))
@@ -463,7 +463,7 @@ class Elf_ShdrTable(list):
             off = entry.sh_offset.value
             size = entry.sh_size.value
 
-            print "[%d] sectionOff: %x - off: %x - size: %x" % (i, sectionOff, off, size)
+            #print "[%d] sectionOff: %x - off: %x - size: %x" % (i, sectionOff, off, size)
             if off and size: 
                 entry.sectionRawData = readDataInstance.readAt(off, size)
 

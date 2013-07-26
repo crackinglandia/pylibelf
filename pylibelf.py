@@ -571,12 +571,12 @@ class Elf64_Sym(BaseStructClass):
         BaseStructClass.__init__(self, shouldPack)
         
         self.st_name = elfdatatypes.Elf64_Word()
-        self.st_value = elfdatatypes.Elf64_Addr()
-        self.st_size = elfdatatypes.Elf64_Xword()
         self.st_info = elfdatatypes.BYTE()
         self.st_other = elfdatatypes.BYTE()
         self.st_shndx = elfdatatypes.Elf64_Half()
-
+        self.st_value = elfdatatypes.Elf64_Addr()
+        self.st_size = elfdatatypes.Elf64_Xword()
+        
         self._fields = ["st_name", "st_value", "st_size", "st_info", "st_other", "st_shndx"]
         
     def getType(self):
@@ -585,12 +585,12 @@ class Elf64_Sym(BaseStructClass):
     @staticmethod
     def parse(readDataInstance):
         elf64_sym = Elf64_Sym()
-        elf64_sym.st_name = elfdatatypes.Elf32_Word(readDataInstance.readElf64Word())
-        elf64_sym.st_value = elfdatatypes.Elf32_Addr(readDataInstance.readElf64Addr())
-        elf64_sym.st_size = elfdatatypes.Elf32_Word(readDataInstance.readElf64Xword())
+        elf64_sym.st_name = elfdatatypes.Elf64_Word(readDataInstance.readElf64Word())
         elf64_sym.st_info = elfdatatypes.BYTE(readDataInstance.readByte())
         elf64_sym.st_other = elfdatatypes.BYTE(readDataInstance.readByte())
-        elf64_sym.st_shndx = elfdatatypes.Elf32_Half(readDataInstance.readElf64Half())
+        elf64_sym.st_shndx = elfdatatypes.Elf64_Half(readDataInstance.readElf64Half())
+        elf64_sym.st_value = elfdatatypes.Elf64_Addr(readDataInstance.readElf64Addr())
+        elf64_sym.st_size = elfdatatypes.Elf64_Xword(readDataInstance.readElf64Xword())
         return elf64_sym
 
 class Elf_SymbolTable(list):
@@ -606,4 +606,3 @@ class Elf_SymbolTable(list):
             else:
                 raise elfexceptions.UnknownFormatException("Unknown file class.")
         return symbolTable
-        

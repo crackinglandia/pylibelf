@@ -108,20 +108,6 @@ class ELF(object):
         else:
             raise elfexceptions.PathOrDataNotSpecifiedException("Path nor data were specified!.")
 
-    def readDataAtOffset(self, offset, size):
-        return self.__data.readAt(offset, size)
-
-    def validate(self, data):
-        rd = elfdatatypes.Array.parse(elfutils.ReadData(data), elfdatatypes.TYPE_BYTE, 16)
-        
-        if rd[0] == elfconstants.ELF_MAGICS["ELFMAG0"] and rd[1] == elfconstants.ELF_MAGICS["ELFMAG1"]\
-        and rd[2] == elfconstants.ELF_MAGICS["ELFMAG2"] and rd[3] == elfconstants.ELF_MAGICS["ELFMAG3"]:
-            return True
-        return False
-            
-    def getType(self):
-        return self.elfHdr.e_ident[elfconstants.ELF_IDENT_TYPES["EI_CLASS"]]
-    
     def __parse__(self, readDataInstance):
         data = elfdatatypes.Array.parse(elfutils.ReadData(readDataInstance.read(16)), elfdatatypes.TYPE_BYTE, 16)
         
@@ -135,38 +121,9 @@ class ELF(object):
         elif elfClass == elfconstants.ELF_FILE_CLASS["ELFCLASS64"]:
             print "--> File is ELF64."
             self.elfHdr = Elf64_Ehdr.parse(readDataInstance)
-
-            if self.elfHdr.e_phnum.value > 0:
-                if self.elfHdr.e_phoff.value:
-
-                    off = self.elfHdr.e_phoff.value
-                    size = self.elfHdr.e_phentsize.value
-                    noEntries = self.elfHdr.e_phnum.value
-
-                    self.PhdrTable = Elf_PhdrTable.parse(readDataInstance, noEntries, off, size, ELFPHDR32 = False)
-
-            if self.elfHdr.e_shnum.value > 0:
-                if self.elfHdr.e_shoff.value:
-                    off = self.elfHdr.e_shoff.value
-                    size = self.elfHdr.e_shentsize.value
-                    noSections = self.elfHdr.e_shnum.value
-
-                    self.ShdrTable = Elf_ShdrTable.parse(readDataInstance, noSections, off, size, ELFSHDR32 = False)
-
-                    sectionNameStringTableIdx = self.elfHdr.e_shstrndx.value
-                    if sectionNameStringTableIdx != elfconstants.ELF_SHN_SPECIAL["SHN_UNDEF"]\
-                    and sectionNameStringTableIdx < self.elfHdr.e_shnum.value:
-                        sectionNameStringTableEntry = self.ShdrTable[sectionNameStringTableIdx]
-
-                        for entry in self.ShdrTable:
-                            idx = entry.sh_name.value
-                            rd = elfutils.ReadData(sectionNameStringTableEntry.sectionRawData)
-                            rd.setOffset(idx)
-                            entry.sectionName = rd.readString()
-
         else:
             raise elfexceptions.UnknownFormatException("Unknown format error.")
-        
+
         if dataEncoding == elfconstants.ELF_DATA_ENCODING_TYPES["ELFDATA2LSB"]:
             print "--> Data: LSB."
         elif dataEncoding == elfconstants.ELF_DATA_ENCODING_TYPES["ELFDATAMSB"]:
@@ -174,6 +131,65 @@ class ELF(object):
         else:
             raise UnknownDataEncodingException("Unknown data encoding for ELF.")
 
+        # start parsing elf program headers
+        if self.elfHdr.e_phnum.value > 0:
+            if self.elfHdr.e_phoff.value:
+
+                off = self.elfHdr.e_phoff.value
+                size = self.elfHdr.e_phentsize.value
+                noEntries = self.elfHdr.e_phnum.value
+
+                # build the program header table
+                self.PhdrTable = Elf_PhdrTable.parse(readDataInstance, noEntries, off, size, ELFCLASS = elfClass)
+
+        # continue parsing elf section headers
+        if self.elfHdr.e_shnum.value > 0:
+            if self.elfHdr.e_shoff.value:
+                off = self.elfHdr.e_shoff.value
+                size = self.elfHdr.e_shentsize.value
+                noSections = self.elfHdr.e_shnum.value
+
+                # build the section header table
+                self.ShdrTable = Elf_ShdrTable.parse(readDataInstance, noSections, off, size, ELFCLASS = elfClass)
+
+                sectionNameStringTableIdx = self.elfHdr.e_shstrndx.value
+                if sectionNameStringTableIdx != elfconstants.ELF_SHN_SPECIAL["SHN_UNDEF"]\
+                and sectionNameStringTableIdx < self.elfHdr.e_shnum.value:
+                    sectionNameStringTableEntry = self.ShdrTable[sectionNameStringTableIdx]
+
+                    for entry in self.ShdrTable:
+                        idx = entry.sh_name.value
+                        rd = elfutils.ReadData(sectionNameStringTableEntry.sectionRawData)
+                        rd.setOffset(idx)
+                        entry.sectionName = rd.readString()
+        
+    def validate(self, data):
+        rd = elfdatatypes.Array.parse(elfutils.ReadData(data), elfdatatypes.TYPE_BYTE, 16)
+        
+        if rd[0] == elfconstants.ELF_MAGICS["ELFMAG0"] and rd[1] == elfconstants.ELF_MAGICS["ELFMAG1"]\
+        and rd[2] == elfconstants.ELF_MAGICS["ELFMAG2"] and rd[3] == elfconstants.ELF_MAGICS["ELFMAG3"]:
+            return True
+        return False
+            
+    def getType(self):
+        return self.elfHdr.e_ident[elfconstants.ELF_IDENT_TYPES["EI_CLASS"]]
+
+    def readDataAtOffset(self, offset, size):
+        return self.__data.readAt(offset, size)
+
+    def getSectionByName(self, sectionName):
+        section = None
+        for sectionEntry in self.ShdrTable:
+            if sectionEntry.sectionName == sectionName:
+                section = sectionEntry
+                break
+        return section
+
+    def getSectionByIndex(self, sectionIndex):
+        if sectionIndex < self.elfHdr.e_shnum.value:
+            return self.ShdrTable[sectionIndex]
+        return None
+        
 class Elf32_Ehdr(BaseStructClass):
     def __init__(self, shouldPack = True):
         BaseStructClass.__init__(self, shouldPack)
@@ -435,15 +451,17 @@ class Elf64_Phdr(BaseStructClass):
 class Elf_PhdrTable(list):
 
     @staticmethod
-    def parse(readDataInstance, noEntries, entryOff, entrySize, ELFPHDR32 = True):
+    def parse(readDataInstance, noEntries, entryOff, entrySize, ELFCLASS = True):
         PhdrTable = Elf_PhdrTable()
         for i in range(noEntries):
             rd = elfutils.ReadData(readDataInstance.readAt(entryOff, entrySize))
             
-            if ELFPHDR32:
+            if ELFCLASS == elfconstants.ELF_FILE_CLASS["ELFCLASS32"]:
                 entry = Elf32_Phdr.parse(rd)
-            else:
+            elif ELFCLASS == elfconstants.ELF_FILE_CLASS["ELFCLASS64"]:
                 entry = Elf64_Phdr.parse(rd)
+            else:
+                raise elfexceptions.UnknownFormatException("Unknown file class.")
 
             off = entry.p_offset.value
             size = entry.p_filesz.value
@@ -460,16 +478,18 @@ class Elf_PhdrTable(list):
 class Elf_ShdrTable(list):
     
     @staticmethod
-    def parse(readDataInstance, noSections, sectionOff, sectionSize, ELFSHDR32 = True):
+    def parse(readDataInstance, noSections, sectionOff, sectionSize, ELFCLASS = True):
         #print "sectionSize: %x" % sectionSize
         ShdrTable = Elf_ShdrTable()
         for i in range(noSections):
             rd = elfutils.ReadData(readDataInstance.readAt(sectionOff, sectionSize))
 
-            if ELFSHDR32:
+            if ELFCLASS == elfconstants.ELF_FILE_CLASS["ELFCLASS32"]:
                 entry = Elf32_Shdr.parse(rd)
-            else:
+            elif ELFCLASS == elfconstants.ELF_FILE_CLASS["ELFCLASS64"]:
                 entry = Elf64_Shdr.parse(rd)
+            else:
+                raise elfexceptions.UnknownFormatException("Unknown file class.")
 
             off = entry.sh_offset.value
             size = entry.sh_size.value
@@ -504,7 +524,7 @@ class Elf64_Shdr(BaseStructClass):
     
         self.sectionRawData = None
         self.sectionName = None
-        
+
         self._fields = ["sh_name", "sh_type", "sh_flags", "sh_addr", "sh_offset", "sh_size", "sh_link",\
                          "sh_info", "sh_addralign", "sh_entsize"]
         

@@ -35,7 +35,10 @@ __license__ = ""
 
 class pylibelfException(Exception):
     pass
-    
+
+class ELFErrorException(pylibelfException):
+	pass
+	    
 class WrongOffsetValueException(pylibelfException):
     pass
 
@@ -51,7 +54,7 @@ class PathOrDataNotSpecifiedException(pylibelfException):
 class PathNotValidException(pylibelfException):
     pass
     
-class UnknownFormatException(pylibelfException):
+class UnknownFormatException(ELFErrorException):
     pass
 
 class UnknownDataEncodingException(pylibelfException):

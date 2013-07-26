@@ -153,6 +153,17 @@ class ELF(object):
 
                     self.ShdrTable = Elf_ShdrTable.parse(readDataInstance, noSections, off, size, ELFSHDR32 = False)
 
+                    sectionNameStringTableIdx = self.elfHdr.e_shstrndx.value
+                    if sectionNameStringTableIdx != elfconstants.ELF_SHN_SPECIAL["SHN_UNDEF"]\
+                    and sectionNameStringTableIdx < self.elfHdr.e_shnum.value:
+                        sectionNameStringTableEntry = self.ShdrTable[sectionNameStringTableIdx]
+
+                        for entry in self.ShdrTable:
+                            idx = entry.sh_name.value
+                            rd = elfutils.ReadData(sectionNameStringTableEntry.sectionRawData)
+                            rd.setOffset(idx)
+                            entry.sectionName = rd.readString()
+
         else:
             raise elfexceptions.UnknownFormatException("Unknown format error.")
         
@@ -492,7 +503,8 @@ class Elf64_Shdr(BaseStructClass):
         self.sh_entsize = elfdatatypes.Elf64_Xword()
     
         self.sectionRawData = None
-
+        self.sectionName = None
+        
         self._fields = ["sh_name", "sh_type", "sh_flags", "sh_addr", "sh_offset", "sh_size", "sh_link",\
                          "sh_info", "sh_addralign", "sh_entsize"]
         

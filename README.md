@@ -1,6 +1,4 @@
-<img src="http://goo.gl/nk11pi" align="middle" height="150" style="max-width: 70px">
-
-pylibelf
+pylibelf <img src="http://goo.gl/nk11pi" align="right" height="150" style="max-width: 70px">
 ========
 
 A pure Python library to parse ELF files.

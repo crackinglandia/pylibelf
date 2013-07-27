@@ -30,4 +30,4 @@ How to use it
 License
 ========
 
-pylibelf is distributed under [BSD 3-Clause](http://opensource.org/licenses/BSD-3-Clause).
+**pylibelf** is distributed under [BSD 3-Clause](http://opensource.org/licenses/BSD-3-Clause).

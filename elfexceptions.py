@@ -31,7 +31,7 @@
 __revision__ = "$Id$"
 __author__ = "Nahuel Riva"
 __contact__ = "crackinglandia@gmail.com"
-__license__ = ""
+__license__ = "BSD 3-Clause"
 
 class pylibelfException(Exception):
     pass

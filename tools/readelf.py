@@ -31,13 +31,22 @@
 __revision__ = "$Id$"
 __author__ = "Nahuel Riva"
 __contact__ = "crackinglandia@gmail.com"
-__license__ = ""
+__license__ = "BSD 3-Clause"
 
 import sys
+
+sys.path.insert(0, "/home/ncr/github/pylibelf/")
 
 import pylibelf
 import elfdatatypes
 
+import optparse
+
+def prepareOptions(parser):
+    parser.add_option("-H", "--header", dest="show_elf_header", action="store_true", default=False, help="print ELF header")
+    parser.add_option("-s", "--section-headers", dest="show_section_hdrs", action="store_true", default=False, help="print section headers")
+    parser.add_option("-p", "--program-headers", dest="show_program_hdrs", action="store_true", default=False, help="print program headers")
+    return parser
 
 def showElfHdr(elfInstance):
     f = elfInstance.elfHdr.getFields()
@@ -51,15 +60,42 @@ def showElfHdr(elfInstance):
                 c += 1
         else:
             print "--> %s = 0x%08x" % (field, f[field].value)
-            
+
+def showSectionHeaders(elfInstance):
+    for entry in elfInstance.ShdrTable:
+        f = entry.getFields()
+        print "Section Name: %s" % entry.sectionName
+        for field in f:
+            print "-> %s = 0x%08x" % (field, f[field].value)
+
+        print "\n"
+
+def showProgramHeaders(elfInstance):
+    for entry in elfInstance.PhdrTable:
+        f = entry.getFields()
+        for field in f:
+            print "-> %s = 0x%08x" % (field, f[field].value)
+
+        print "\n"
+
 def main():
 
-    if len(sys.argv) < 2:
-        print "Usage: %s <ELF filename>" % __file__
-        sys.exit(0)
+    parser = optparse.OptionParser("usage: %prog [options] filename")    
+    parser = prepareOptions(parser)
+    (options, args) = parser.parse_args()
+    if len(args) != 1:
+        parser.error("incorrect number of arguments")
 
-    elf = pylibelf.ELF(sys.argv[1])
-    showElfHdr(elf)
-    
+    elf = pylibelf.ELF(args[0])
+
+    if options.show_elf_header:
+        showElfHdr(elf)
+    elif options.show_section_hdrs:
+        showSectionHeaders(elf)
+    elif options.show_program_hdrs:
+        showProgramHeaders(elf)
+    else:
+        parser.print_help()
+
 if __name__ == "__main__":
     main()

@@ -1,13 +1,14 @@
 import os
 import sys
+
+sys.path.insert(0, "/home/ncr/github/pylibelf/")
+
 import pylibelf
 import elfconstants
 
 if len(sys.argv) < 2:
 	print "Usage: %s <filename>" % __file__
 	sys.exit(0)
-
-sys.path.insert(0, "/home/ncr/github/pylibelf")
 
 filename = sys.argv[1]
 

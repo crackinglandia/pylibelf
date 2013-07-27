@@ -1,9 +1,9 @@
 pylibelf <img src="http://goo.gl/nk11pi" align="right" height="150" style="max-width: 70px">
 ========
 
-A pure Python library to parse ELF files.
+A pure Python library to parse [ELF](http://es.wikipedia.org/wiki/Executable_and_Linkable_Format) files.
 
-At the moment, you can only read [ELF](http://es.wikipedia.org/wiki/Executable_and_Linkable_Format) files. The write functionallity is work-in process.
+At the moment, you can only read ELF files. The write functionallity is work-in process.
 
 **NOTE**: This is not a wrapper around libelf!.
 

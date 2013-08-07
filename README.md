@@ -1,7 +1,10 @@
 pylibelf <img src="http://goo.gl/nk11pi" align="right" height="150" style="max-width: 70px">
 ========
 
-A pure Python library to parse [ELF](http://es.wikipedia.org/wiki/Executable_and_Linkable_Format) files.
+**pylibelf** is a pure Python library to parse [ELF](http://es.wikipedia.org/wiki/Executable_and_Linkable_Format) files.
+
+This tool is in early development stage, if you have any question or
+want help in coding feel free to contact me at crackinglandia [at] gmail.
 
 At the moment, you can only read ELF files. The write functionallity is work-in process.
 
